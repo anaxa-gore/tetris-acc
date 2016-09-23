@@ -38,7 +38,7 @@ var c5 = new CorpsDeMetier('MECA', generateArray(0, 13, SIZE), generateArray(0, 
 var c6 = new CorpsDeMetier('MECA', generateArray(0, 3, SIZE), generateArray(0, 7, SIZE));
 
 
-var data = [c1, c2, c3, c4, c5, c6];
+var data = [c1, c2];
 
 
 setInterval(function () {
@@ -49,7 +49,7 @@ setInterval(function () {
     c5._availables = generateArray(0, 13, SIZE);
     c6._availables = generateArray(0, 3, SIZE);
 
-    c1._used = generateArray(0, 0, SIZE);
+    c1._used = generateArray(0, 18, SIZE);
     c2._used = generateArray(0, 10, SIZE);
     c3._used = generateArray(0, 25, SIZE);
     c4._used = generateArray(0, 7, SIZE);
@@ -58,7 +58,7 @@ setInterval(function () {
 
     computeData(data);
     updateData();
-}, 500);
+}, 300);
 
 function computeData(data) {
     var start = new Date();
@@ -71,9 +71,14 @@ function computeData(data) {
         corps._availables.map(function (currentDispo, i) {
             var residuel = currentDispo - corps._used[i]; // Nb not used during the period
             var column = new Array(maxDispoPlusOffset);
-            column.fill('NONE');
+            // column.fill('NONE');
 
             for (var t = 0; t < maxDispoPlusOffset; t++) {
+                // TODO TBA : Inliner cette chose peut faire gagner 2 à 3 fois en perfs
+                // var isOver = t != (maxDispoPlusOffset - 1);
+                // column[t] = (t < residuel) ? 'AVAILABLE' : (t < (residuel + corps._used[i]) ? 'USED' : (residuel < 0 ? (isOver ? 'OVER' : 'SUPER_OVER') : ''));
+                // if(residuel < 0)
+                //     residuel++;
                 if (t < residuel)
                     column[t] = 'AVAILABLE'; // Si on a de la disponibilité en plus
                 else if (t < (residuel + corps._used[i])) {
@@ -90,8 +95,6 @@ function computeData(data) {
     });
 
     var end = new Date();
-    console.log(start.getTime(), end.getTime());
-
     var duration = end.getTime() - start.getTime();
     console.log('ComputeData', duration+'ms');
 }
