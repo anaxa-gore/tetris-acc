@@ -13,12 +13,56 @@ CorpsDeMetier.prototype.getNom = function () {
     return this._nom;
 };
 
-var data = [new CorpsDeMetier('ELEC', [2, 2, 2, 2, 2], [1, 0, 3, 1, 5]), new CorpsDeMetier('PLOMB', [1, 1, 5, 5, 10], [1, 0, 3, 1, 35]), new CorpsDeMetier('PLOMB', [5, 5, 3, 3, 1], [3, 7, 3, 2, 10])];
-// var data = [new CorpsDeMetier('MECA', [8, 6, 4, 3, 2, 1, 5, 5], [5, 3, 2, 4, 12, 1, 8, 2])];
-// var data = [new CorpsDeMetier('ELEC', [5], [18])];
 
+function generateArray(min, max, nb) {
+    var start = new Date();
+
+    var result = new Array(nb);
+    for (var i = 0; i < nb; i++) {
+        result[i] = Math.floor((Math.random() * max) + min);
+    }
+
+    var end = new Date();
+    var duration = end.getTime() - start.getTime();
+    // console.log('GenerateArray', duration+'ms');
+    return result;
+}
+
+var SIZE = 90;
+
+var c1 = new CorpsDeMetier('MECA', generateArray(0, 15, SIZE), generateArray(0, 5, SIZE));
+var c2 = new CorpsDeMetier('MECA', generateArray(0, 8, SIZE), generateArray(0, 20, SIZE));
+var c3 = new CorpsDeMetier('MECA', generateArray(0, 13, SIZE), generateArray(0, 25, SIZE));
+var c4 = new CorpsDeMetier('MECA', generateArray(0, 3, SIZE), generateArray(0, 7, SIZE));
+var c5 = new CorpsDeMetier('MECA', generateArray(0, 13, SIZE), generateArray(0, 25, SIZE));
+var c6 = new CorpsDeMetier('MECA', generateArray(0, 3, SIZE), generateArray(0, 7, SIZE));
+
+
+var data = [c1, c2, c3, c4, c5, c6];
+
+
+setInterval(function () {
+    c1._availables = generateArray(1, 15, SIZE);
+    c2._availables = generateArray(0, 9, SIZE);
+    c3._availables = generateArray(0, 13, SIZE);
+    c4._availables = generateArray(0, 3, SIZE);
+    c5._availables = generateArray(0, 13, SIZE);
+    c6._availables = generateArray(0, 3, SIZE);
+
+    c1._used = generateArray(0, 0, SIZE);
+    c2._used = generateArray(0, 10, SIZE);
+    c3._used = generateArray(0, 25, SIZE);
+    c4._used = generateArray(0, 7, SIZE);
+    c5._used = generateArray(0, 25, SIZE);
+    c6._used = generateArray(0, 7, SIZE);
+
+    computeData(data);
+    updateData();
+}, 500);
 
 function computeData(data) {
+    var start = new Date();
+
     data.map(function (corps) {
         var maxDispo = d3.max(corps._availables);
         var maxDispoPlusOffset = maxDispo + 2;
@@ -44,12 +88,19 @@ function computeData(data) {
         });
         corps.matrix = corpsMatrix;
     });
+
+    var end = new Date();
+    console.log(start.getTime(), end.getTime());
+
+    var duration = end.getTime() - start.getTime();
+    console.log('ComputeData', duration+'ms');
 }
 
 computeData(data);
 
 
 // ------------------------------------------------------------------- RENDERING
+var margins = 2;
 
 function calculateAvailableRessources(data) {
     var somme = 0;
@@ -63,12 +114,38 @@ function calculateAvailableRessources(data) {
 // Initialize the scale for each band
 var heightScale = d3.scaleLinear().domain([0, calculateAvailableRessources(data)]);
 
-function getColumnWidth(windowWidth, corpsDeMetier) {
-    return windowWidth / corpsDeMetier.matrix.length;
+function getResourceSize(svgSelection, nbResources, nbTimeSamples) {
+    var height = Math.floor((svgSelection.attr('height') / nbResources) - (margins));
+    var width = Math.floor((svgSelection.node().clientWidth / nbTimeSamples) - (margins));
+
+    return width > height ? height : width;
 }
 
-function getResourceHeight(columnNode, nbResources){
-    return d3.select(columnNode).attr('height') / nbResources;
+function updateData() {
+    d3.selectAll('svg').data(data)
+        .each(function (corps, colIdx) {
+            d3.select(this).selectAll('.column').data(corps.matrix)
+                .each(function (colD, colIdx) {
+                    d3.select(this).selectAll('.resource')
+                        .data(colD)
+                        .transition()
+                        .style('fill', function (el) {
+                            switch (el) {
+                                case 'AVAILABLE':
+                                    return 'green';
+                                case 'USED':
+                                    return 'orange';
+                                case 'OVER':
+                                    return 'red';
+                                case 'SUPER_OVER':
+                                    return 'black';
+                                case 'NONE':
+                                default:
+                                    return 'white';
+                            }
+                        })
+                })
+        });
 }
 
 function resize() {
@@ -83,43 +160,40 @@ function resize() {
 
     svgs.enter().append('svg')
         .attr('width', '100%')
-        .style('background-color', function (d, i) {
-            return i % 2 ? 'grey' : 'white';
+        .style('background', function (corpsDeMetier, i) {
+            return i % 2 ? 'grey' : 'lightgrey';
         })
         .merge(svgs)                // Merging the two selections to update height for every bands
-        .attr('height', function (d) {
-            return heightScale(d3.max(d._availables) + 2);
+        .attr('height', function (corpsDeMetier) {
+            return Math.floor(heightScale(d3.max(corpsDeMetier._availables) + 2));
         })
         .each(function (corpsDeMetier, svgIndex, svgs) {
+            var svgSelection = d3.select(this);
+
             var columns = d3.select(this).selectAll('.column').data(corpsDeMetier.matrix);
             columns.enter().append('g')
                 .attr('class', 'column')
                 .merge(columns)
-                .attr('width', function (columnData, columnIndex, columns) {
-                    return getColumnWidth(this.parentNode.clientWidth, corpsDeMetier);
-                })
-                .attr('height', function (columnData, columnIndex, columns) {
-                    return this.parentNode.clientHeight;
-                })
                 .attr('transform', function (columnData, columnIndex) {
-                    return 'translate(' + columnIndex * getColumnWidth(this.parentNode.clientWidth, corpsDeMetier) + ')';
+                    return 'translate(' + (columnIndex * getResourceSize(svgSelection, columnData.length, corpsDeMetier.matrix.length)) + ')';
                 })
                 .each(function (columnData, columnIndex) {
                     var resources = d3.select(this).selectAll('.resource').data(columnData);
                     resources.enter()
                         .append('rect')
                         .attr('class', 'resource')
-                        .attr('x', 0)
+                        .attr('x', margins + margins * columnIndex)
                         .merge(resources)
-                        .attr('y', function(resourceData, resourceIndex){
-                            return resourceIndex * getResourceHeight(this.parentNode, columnData.length);
+                        .attr('y', function (resourceData, resourceIndex) {
+                            return resourceIndex * getResourceSize(svgSelection, columnData.length, corpsDeMetier.matrix.length) + margins + (margins * resourceIndex);
                         })
-                        .attr('width', function(resourceData, resourceIndex){
-                            return d3.select(this.parentNode).attr('width');
+                        .attr('width', function (resourceData, resourceIndex) {
+                            return getResourceSize(svgSelection, columnData.length, corpsDeMetier.matrix.length);
                         })
-                        .attr('height', function(resourceData, resourceIndex){
-                            return getResourceHeight(this.parentNode, columnData.length);
+                        .attr('height', function (resourceData, resourceIndex) {
+                            return getResourceSize(svgSelection, columnData.length, corpsDeMetier.matrix.length);
                         })
+                        .transition()
                         .style('fill', function (el) {
                             switch (el) {
                                 case 'AVAILABLE':
