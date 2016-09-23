@@ -13,33 +13,35 @@ CorpsDeMetier.prototype.getNom = function () {
     return this._nom;
 };
 
-// new CorpsDeMetier('ELEC', [2, 2, 2, 2, 2], [1, 0, 3, 1, 5]), new CorpsDeMetier('PLOMB', [1, 1, 5, 5], [1, 0, 3, 1]),
-var data = [new CorpsDeMetier('MECA', [8, 6, 4, 3, 2, 1, 5, 5], [5, 3, 2, 4, 5, 1, 4, 2])]
-// var data = [new CorpsDeMetier('ELEC', [5], [0])];
+// var data = [new CorpsDeMetier('ELEC', [2, 2, 2, 2, 2], [1, 0, 3, 1, 5]), new CorpsDeMetier('PLOMB', [1, 1, 5, 5], [1, 0, 3, 1])];
+var data = [new CorpsDeMetier('MECA', [8, 6, 4, 3, 2, 1, 5, 5], [5, 3, 2, 4, 12, 1, 8, 2])];
+// var data = [new CorpsDeMetier('ELEC', [5], [18])];
 
 
 function computeData(data) {
     data.map(function (corps) {
-        var realMaxResources = d3.max(corps._availables);
-        var maxResources = realMaxResources + 2;
+        var maxDispo = d3.max(corps._availables);
+        var maxDispoPlusOffset = maxDispo + 2;
         var corpsMatrix = [];
 
-        corps._availables.map(function (dispo, i) {
-            var nbDispos = dispo - corps._used[i];
-            var column = [];
+        corps._availables.map(function (currentDispo, i) {
+            var residuel = currentDispo - corps._used[i]; // Nb not used during the period
+            var column = new Array(maxDispoPlusOffset);
+            column.fill('NONE');
 
-            column[0] = nbDispos < -1 ? 'SUPER_OVER' : 'NONE';
-            column[1] = nbDispos <= -1 ? 'OVER' : 'NONE';
-            var nbUnused = realMaxResources - dispo;
-            for (var u = 2; u < nbUnused; u++) {
-                column[u] = 'NONE';
+            for (var t = 0; t < maxDispoPlusOffset; t++) {
+                if (t < residuel)
+                    column[t] = 'AVAILABLE'; // Si on a de la disponibilité en plus
+                else if (t < (residuel + corps._used[i])) {
+                    column[t] = 'USED'; // Si on a des ressources utilisées
+                } else if (residuel < 0) {
+                    column[t] = t != (maxDispoPlusOffset - 1) ? 'OVER' : 'SUPER_OVER';
+                    residuel++;
+                }
             }
-            for (var u = 2 + nbUnused; u < maxResources; u++) {
-                column[u] = (nbDispos <= 0 || ((maxResources - u) > nbDispos) ? 'USED' : 'AVAILABLE');
-            }
+            column.reverse();
             corpsMatrix.push(column);
         });
-
         corps.matrix = corpsMatrix;
     });
 }
