@@ -2,11 +2,14 @@
   "name": "tetris-acc",
   "version": "1.0.0",
   "description": "Test de D3js pour ACC",
+  "license": "UNLICENSED",
   "repository": {
     "type": "git",
     "url": "https://github.com/anaxa-gore/tetris-acc"
   },
-  "license": "UNLICENSED",
+  "scripts": {
+    "start": "node node_modules/http-server/bin/http-server -p 3000"
+  },
   "dependencies": {
     "d3": "^4.2.5"
   },
