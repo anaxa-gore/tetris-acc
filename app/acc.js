@@ -48,7 +48,20 @@ function computeData(data) {
 
 computeData(data);
 
-/////////////////////////////////////////////////////////////////////////////////////////// RENDERING
+
+// ------------------------------------------------------------------- RENDERING
+
+function calculateAvailableRessources(data) {
+    var somme = 0;
+    data.map(function (corps) {
+        somme += d3.max(corps._availables) + 2;
+    });
+
+    return somme;
+}
+
+// Initialize the scale for each band
+var heightScale = d3.scaleLinear().domain([0, calculateAvailableRessources(data)]);
 
 function getColumnWidth(windowWidth, corpsDeMetier) {
     return windowWidth / corpsDeMetier.matrix.length;
