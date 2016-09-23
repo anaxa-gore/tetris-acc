@@ -13,8 +13,8 @@ CorpsDeMetier.prototype.getNom = function () {
     return this._nom;
 };
 
-// var data = [new CorpsDeMetier('ELEC', [2, 2, 2, 2, 2], [1, 0, 3, 1, 5]), new CorpsDeMetier('PLOMB', [1, 1, 5, 5], [1, 0, 3, 1])];
-var data = [new CorpsDeMetier('MECA', [8, 6, 4, 3, 2, 1, 5, 5], [5, 3, 2, 4, 12, 1, 8, 2])];
+var data = [new CorpsDeMetier('ELEC', [2, 2, 2, 2, 2], [1, 0, 3, 1, 5]), new CorpsDeMetier('PLOMB', [1, 1, 5, 5, 10], [1, 0, 3, 1, 35]), new CorpsDeMetier('PLOMB', [5, 5, 3, 3, 1], [3, 7, 3, 2, 10])];
+// var data = [new CorpsDeMetier('MECA', [8, 6, 4, 3, 2, 1, 5, 5], [5, 3, 2, 4, 12, 1, 8, 2])];
 // var data = [new CorpsDeMetier('ELEC', [5], [18])];
 
 
@@ -47,23 +47,16 @@ function computeData(data) {
 }
 
 computeData(data);
-console.log(data);
 
-// var nbSquares = data.interval_hours * 60 / 15;
-// var squareArray = d3.range(0, nbSquares, 1);
+/////////////////////////////////////////////////////////////////////////////////////////// RENDERING
 
-var colors = ['red', 'green', 'orange'];
-
-function calculateAvailableRessources(data) {
-    var somme = 0;
-    data.map(function (corps) {
-        somme += d3.max(corps._availables);
-    });
-    return somme;
+function getColumnWidth(windowWidth, corpsDeMetier) {
+    return windowWidth / corpsDeMetier.matrix.length;
 }
 
-// Initialize the scale for each band
-var heightScale = d3.scaleLinear().domain([0, calculateAvailableRessources(data)]);
+function getResourceHeight(columnNode, nbResources){
+    return d3.select(columnNode).attr('height') / nbResources;
+}
 
 function resize() {
     var accDiv = document.getElementById("acc");
@@ -82,105 +75,60 @@ function resize() {
         })
         .merge(svgs)                // Merging the two selections to update height for every bands
         .attr('height', function (d) {
-            return heightScale(d3.max(d._availables));
+            return heightScale(d3.max(d._availables) + 2);
+        })
+        .each(function (corpsDeMetier, svgIndex, svgs) {
+            var columns = d3.select(this).selectAll('.column').data(corpsDeMetier.matrix);
+            columns.enter().append('g')
+                .attr('class', 'column')
+                .merge(columns)
+                .attr('width', function (columnData, columnIndex, columns) {
+                    return getColumnWidth(this.parentNode.clientWidth, corpsDeMetier);
+                })
+                .attr('height', function (columnData, columnIndex, columns) {
+                    return this.parentNode.clientHeight;
+                })
+                .attr('transform', function (columnData, columnIndex) {
+                    return 'translate(' + columnIndex * getColumnWidth(this.parentNode.clientWidth, corpsDeMetier) + ')';
+                })
+                .each(function (columnData, columnIndex) {
+                    var resources = d3.select(this).selectAll('.resource').data(columnData);
+                    resources.enter()
+                        .append('rect')
+                        .attr('class', 'resource')
+                        .attr('x', 0)
+                        .merge(resources)
+                        .attr('y', function(resourceData, resourceIndex){
+                            return resourceIndex * getResourceHeight(this.parentNode, columnData.length);
+                        })
+                        .attr('width', function(resourceData, resourceIndex){
+                            return d3.select(this.parentNode).attr('width');
+                        })
+                        .attr('height', function(resourceData, resourceIndex){
+                            return getResourceHeight(this.parentNode, columnData.length);
+                        })
+                        .style('fill', function (el) {
+                            switch (el) {
+                                case 'AVAILABLE':
+                                    return 'green';
+                                case 'USED':
+                                    return 'orange';
+                                case 'OVER':
+                                    return 'red';
+                                case 'SUPER_OVER':
+                                    return 'black';
+                                case 'NONE':
+                                default:
+                                    return 'white';
+                            }
+                        })
+                        .style('stroke', 'black');
+                });
         });
 
     svgs.exit().remove();
-
-    var columns = d3.selectAll('svg')
-        .selectAll('.column').data(function (d) {
-            // console.log("Matrice pour les colonnes : ", d.matrix);
-            return d.matrix;
-        });
-
-    columns.exit().remove();
-    columns.enter().append('g')
-        .attr('class', 'column')
-        .attr('fill', function (d, i) {
-            return i % 2 ? 'grey' : 'white'
-        })
-        .attr('transform', function (d, i) {
-            return 'translate(' + i * (this.parentNode.parentNode.clientWidth / d.length) + ')'; // FIXME TBA : this.parentNode.parentNode... à remplacer par le SVG correspondant
-        }).attr('width', function (d) {
-        return this.parentNode.parentNode.clientWidth / d.length; // FIXME TBA : this.parentNode.parentNode... à remplacer par le SVG correspondant
-    })
-    /*.append('rect')
-     .attr('width', function (d) {
-     return this.parentNode.parentNode.clientWidth / d.length; // FIXME TBA : this.parentNode.parentNode... à remplacer par le SVG correspondant
-     })*/
-        .attr('height', '100%')
-        .each(function (column, i) {
-            var users = d3.select(this).selectAll('.user').data(column);
-
-            users.exit().remove();
-            users.enter().append('rect')
-                .attr('class', 'user')
-                .attr('x', 0)
-                .attr('y', function (d, i) {
-                    return i * 50;
-                })
-                .attr('width', function () {
-                    var width = d3.select(this.parentNode).attr('width');
-                    return width;
-                })
-                .attr('height', 50)
-                .style('fill', function (el) {
-                    switch (el) {
-                        case 'AVAILABLE':
-                            return 'green';
-                        case 'USED':
-                            return 'orange';
-                        case 'OVER':
-                            return 'red';
-                        case 'SUPER_OVER':
-                            return 'black';
-                        case 'NONE':
-                        default:
-                            return 'white';
-                    }
-                })
-                .style('stroke', 'black')
-        });
-    // .data(function (data, i) {
-    //     console.log("Donnée par colonne : ", data.matrix[i]);
-    //     return data;
-    // });
-
-    columns = columns.enter().merge(columns);
-
-
-    // var squares = d3.selectAll('svg').selectAll('rect').data(function (d) {
-    //     return d._availables;
-    // });
-    // squares.exit().remove();
-    // squares.enter().append('g').attr('transform', function (d) {
-    //     console.log(this.parentNode.clientHeight)
-    //     return 'translate(0,' + (this.parentNode.clientHeight - 50  ) + ')';
-    // })
-    //     .append('rect')
-    //     .merge(squares)
-    //     .attr('width', function () {
-    //         return 50;
-    //         //         return horizontalSquareScale(1);
-    //     })
-    //     .attr('height', function (d, i, group) {
-    //         return 50;
-    //         //         console.log(this);
-    //         //         return horizontalSquareScale(1);
-    //     })
-    //     .attr('x', function (d, i) {
-    //         return 50 * i + (2 * i + 2);//horizontalSquareScale(1) * i + (2 * i + 2);
-    //     }).transition()
-    //     .style('fill', function () {
-    //         return colors[Math.floor(Math.random() * colors.length)];
-    //     })
-    //     .style('stroke', 'rgb(0,0,0)')
-    //     .style('stroke-width', 1);
-    // console.log(colors[Math.floor(Math.random() * colors.length)]);
 }
 
 window.addEventListener('resize', resize);
 resize();
-
-d3.select('body').style('background-color', 'yellow');
 
